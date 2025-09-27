@@ -14,6 +14,7 @@ from common.app.core.config import config as cfg_c
 # cd /root_app/backend/app/tests
 # pytest websocket_login_actions_admin_test.py
 
+
 async def send_and_receive(websocket, message, expected_responses_count=10, timeout=1):
     print(f"Отправлено на сервер: {message}")
     await websocket.send(message)
@@ -21,7 +22,10 @@ async def send_and_receive(websocket, message, expected_responses_count=10, time
     responses = []
     start_time = asyncio.get_event_loop().time()
 
-    while len(responses) < expected_responses_count and asyncio.get_event_loop().time() - start_time < timeout:
+    while (
+        len(responses) < expected_responses_count
+        and asyncio.get_event_loop().time() - start_time < timeout
+    ):
         try:
             response = await asyncio.wait_for(websocket.recv(), timeout=timeout)
             responses.append(json.loads(response))
@@ -37,31 +41,35 @@ async def send_and_receive(websocket, message, expected_responses_count=10, time
 
 
 async def create_user_get_admin_token_and_ban_user():
-    uri = "wss://pixel-battle.k-lab.su/ws/" # production
-    fastapi_server_url = "https://pixel-battle.k-lab.su"
-    # uri = "ws://localhost:8000/ws/" # development
-    # fastapi_server_url = "http://localhost:8000"
+    uri = cfg_c.BACKEND_DOMAIN if cfg_c.BACKEND_DOMAIN.startswith("ws") else None
+    if not uri:
+        uri = "ws://localhost:8000/ws/"
+    fastapi_server_url = (
+        f"http://{cfg_c.BACKEND_DOMAIN}:{cfg_c.BACKEND_DOMAIN_PORT}"
+        if not str(cfg_c.BACKEND_DOMAIN).startswith("http")
+        else cfg_c.BACKEND_DOMAIN
+    )
 
     # Создание пользователя через WebSocket
     async with websockets.connect(uri) as websocket:
-        responses = await send_and_receive(websocket, json.dumps({"type": "login", "data": {"nickname": "NewUser"}}), 3)
-        user_id = responses[0]['data']
+        responses = await send_and_receive(
+            websocket, json.dumps({"type": "login", "data": {"nickname": "NewUser"}}), 3
+        )
+        user_id = responses[0]["data"]
         print("Пользователь создан с user_id:", user_id)
         # Создание пикселя
         message = {
             "type": "update_pixel",
-            "data": {
-                "x": 10,
-                "y": 20,
-                "color": '#FF5733'
-            }
+            "data": {"x": 10, "y": 20, "color": "#FF5733"},
         }
         await send_and_receive(websocket, json.dumps(message), 0)
 
     # Получение токена администратора
     async with httpx.AsyncClient() as client:
-        response = await client.post(f"{fastapi_server_url}/admin/login",
-                                     json={"username": "admin", "password": "password"})
+        response = await client.post(
+            f"{fastapi_server_url}/admin/login",
+            json={"username": "admin", "password": "password"},
+        )
         token_data = response.json()
 
         print(token_data)
@@ -71,56 +79,63 @@ async def create_user_get_admin_token_and_ban_user():
     # Подключение к WebSocket как администратор и бан пользователя
     async with websockets.connect(uri) as websocket:
         # Аутентификация с использованием токена
-        await send_and_receive(websocket, json.dumps({
-            "type": "login_admin",
-            "data": access_token
-        }), )
+        await send_and_receive(
+            websocket,
+            json.dumps({"type": "login_admin", "data": access_token}),
+        )
 
-        await send_and_receive(websocket, json.dumps({
-            "type": "get_field_state"
-        }), )
+        await send_and_receive(
+            websocket,
+            json.dumps({"type": "get_field_state"}),
+        )
 
         # Пример выполнения действий от имени администратора
         # Например, отправка сообщения об очистке пикселя
 
         # Получение информации о пикселе
-        await send_and_receive(websocket, json.dumps({
-            "type": "pixel_info_admin",
-            "data": {"x": 10, "y": 20}
-        }), )
+        await send_and_receive(
+            websocket,
+            json.dumps({"type": "pixel_info_admin", "data": {"x": 10, "y": 20}}),
+        )
 
-        await send_and_receive(websocket, json.dumps({
-            "type": "update_cooldown_admin",
-            "data": 10
-        }), )
+        await send_and_receive(
+            websocket,
+            json.dumps({"type": "update_cooldown_admin", "data": 10}),
+        )
 
         # отправка сообщения об очистке пикселя
-        await send_and_receive(websocket, json.dumps({
-            "type": "update_pixel_admin",
-            "data": {"x": 10, "y": 20, "color": "#FFFFFF"}
-        }), )
+        await send_and_receive(
+            websocket,
+            json.dumps(
+                {
+                    "type": "update_pixel_admin",
+                    "data": {"x": 10, "y": 20, "color": "#FFFFFF"},
+                }
+            ),
+        )
 
         # Бан пользователя
-        await send_and_receive(websocket, json.dumps({
-            "type": "toggle_ban_user_admin",
-            "data": {"user_id": user_id}
-        }), )
+        await send_and_receive(
+            websocket,
+            json.dumps({"type": "toggle_ban_user_admin", "data": {"user_id": user_id}}),
+        )
 
         # разбан пользователя
-        await send_and_receive(websocket, json.dumps({
-            "type": "toggle_ban_user_admin",
-            "data": {"user_id": user_id}
-        }), )
+        await send_and_receive(
+            websocket,
+            json.dumps({"type": "toggle_ban_user_admin", "data": {"user_id": user_id}}),
+        )
 
-        await send_and_receive(websocket, json.dumps({
-            "type": "get_field_state"
-        }), )
+        await send_and_receive(
+            websocket,
+            json.dumps({"type": "get_field_state"}),
+        )
 
         # Сброс игры
-        await send_and_receive(websocket, json.dumps({
-            "type": "reset_game_admin",
-            "data": (128, 128)
-        }), )
+        await send_and_receive(
+            websocket,
+            json.dumps({"type": "reset_game_admin", "data": (128, 128)}),
+        )
         # обрабатываем отключение админа
         await websocket.close()
 

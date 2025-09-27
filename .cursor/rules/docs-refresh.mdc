@@ -1,0 +1,10 @@
+---
+description: инкрементальное обновление
+alwaysApply: false
+---
+Обнови docs/ai по diff:
+1) git diff --name-only HEAD~1..HEAD
+2) для каждого изменённого src/**/*.py:
+   - tree_sitter.explain_code + get_symbols → перегенерируй docs/ai/modules/<file>.md
+3) Если менялись эндпоинты FastAPI: пересобери список маршрутов в docs/ai/contracts/openapi.md
+4) Перегенерируй docs/ai/project_brief.md через tree_sitter.project_overview, сохрани раздел «Инварианты»

@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.api.router import include_api
 from common.app.core.config import config as cfg
 from common.app.db import db_pool, create_db
+
 # from backend.app.api.web_socket import app_ws as websocket_app
 from backend.app.api.web_socket import app_ws as websocket_app
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -19,7 +20,10 @@ api_router = APIRouter()
 include_api(api_router)
 app.include_router(api_router)
 
-Instrumentator().instrument(app).expose(app, include_in_schema=False, should_gzip=True)
+if cfg.DEBUG_MODE:
+    Instrumentator().instrument(app).expose(
+        app, include_in_schema=False, should_gzip=True
+    )
 
 
 """
@@ -29,16 +33,13 @@ CORS or "Cross-Origin Resource Sharing" refers to situations when a frontend run
 that communicates with a backend, and the backend is in a different "origin" than the frontend.
 """
 
-origins = [
-    "*"
-]
+origins = ["*"] if cfg.DEBUG_MODE else [cfg.FRONTEND_URL]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS", "DELETE", "PATCH", "PUT"],
-    allow_headers=["*"]
-
+    allow_headers=["*"],
 )
 
 
@@ -46,12 +47,13 @@ app.add_middleware(
 @app.on_event("startup")
 async def open_pool():
     await db_pool.init_pool(cfg)
-    await create_db.init_db()
-    logging.debug(f'=> pool open:')
+    if cfg.DEBUG_MODE:
+        await create_db.init_db()
+    logging.debug(f"=> pool open:")
 
 
 # Function to be called when the server shuts down
 @app.on_event("shutdown")
 async def close_pool():
     await db_pool.close_pool()
-    logging.debug('=> pool close /)')
+    logging.debug("=> pool close /)")

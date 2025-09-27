@@ -1,0 +1,72 @@
+---
+description: "RAG App — авто-контекст (docs/ai) + дисциплина извлечения (MCP: tree_sitter, workspace-code-search, ripgrep) + долговременная память (MCP: graphiti)"
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Политика контекста
+- Всегда сначала используй статическую доку из `docs/ai/**` (brief, architecture, pipelines, glossary, modules, ADR).
+- Не подтягивай целые файлы — только (path, line-range), минимально достаточный фрагмент.
+- Для «по смыслу» — `workspace-code-search`. Для точных строк/регексов/флагов — `ripgrep`.
+
+# Графовая память (Graphiti)
+- **Назначение.** Храним знания проекта (решённые баги, нестандартные конфиги, принятые решения, приёмы) как узлы/факты. Не сохранять секреты/PII. :contentReference[oaicite:1]{index=1}
+- **Чтение — всегда перед работой:** при старте чата/задачи, планировании, начале имплементации и при баге:
+  - `tool: graphiti.search_memory_nodes query="<ключевые слова задачи/симптома>", top_k=10`
+  - по возможности дополняй: `graphiti.search_memory_facts query="..."` (если есть).
+- **Запись — после результата:** по завершении задачи/фикса добавь краткую заметку:
+  - `tool: graphiti.add_memory name="<краткий заголовок>", episode_body="<что было, что сделали, результат, теги>", source="manual"`
+  - минимум: *что это*, *контекст/симптомы*, *шаги решения*, *итог/риски*, *теги (module:, api:, infra:, bug:)*. :contentReference[oaicite:2]{index=2}
+- **Проектный namespace:** сервер Graphiti запущен с `--group-id rag_app`, знания проектно изолированы. :contentReference[oaicite:3]{index=3}
+
+# Auto-Context Refresh (при старте чата и перед крупными правками; авто-run MCP включён)
+1) Зарегистрировать проект (если не зарегистрирован):
+```
+
+tool: tree_sitter.register_project_tool(path="C:/llms/rag/rag_app", name="rag_app")
+
+```
+2) Обновить AST/символы:
+```
+
+tool: tree_sitter.analyze_project(project="rag_app")
+
+```
+3) Перегенерировать обзор проекта:
+```
+
+prompt: tree_sitter.project_overview(project="rag_app")
+→ перезапиши docs/ai/project_brief.md (сохрани блок «Инварианты», если есть)
+
+```
+4) Инкремент по изменённым файлам:
+```
+
+terminal: git diff --name-only HEAD~1..HEAD
+для каждого изменённого src/**/*.py:
+tool: tree_sitter.explain_code(project="rag_app", path="<file>")
+tool: tree_sitter.get_symbols(project="rag_app", path="<file>")
+→ обнови docs/ai/modules/<relative-path>.md
+
+```
+5) Если менялись эндпоинты (`src/api/v1/**`), освежи список в `docs/ai/contracts/openapi.md`:
+- `workspace-code-search` по `APIRouter`, `@router.(get|post|put|delete)`
+- точная верификация:
+```
+
+tool: ripgrep.search(pattern="@router\.(get|post|put|delete)", path="src/api/v1")
+
+```
+
+# Дисциплина извлечения
+- Порядок: **docs/ai → Graphiti → код**.
+- Затем: `workspace-code-search` (семантические кандидаты) → `ripgrep` (подтверждение строк/флагов).
+- При расхождении доки и кода — приоритет у кода; обнови доку.
+
+# When to ADR
+- Меняются пайплайны (ingest/index/retrieve/rerank/cache), SLA, протоколы, границы сервисов.
+- Создай `docs/ai/adr/ADR-YYYYMMDD-<slug>.md` (контекст → решение → последствия) и сослись в PR.
+
+# Качество
+- План → diff → тест-план → риски → ссылки на строки. Никаких лишних файлов в контексте.

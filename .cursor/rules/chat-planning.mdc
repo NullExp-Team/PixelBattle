@@ -1,0 +1,27 @@
+---
+description: "Planning — план по docs/ai + AST + память Graphiti, без правок кода"
+globs:
+  - "docs/ai/**"
+  - "src/**"
+alwaysApply: false
+---
+
+# Поведение
+- Цель: из запроса получить Task Brief, **Memory Context** (факты/узлы из Graphiti), Context Bundle, Acceptance Checklist и риски — без изменений кода.
+
+# Шаги
+1) Обнови контекст (см. Auto-Context Refresh в global.mdc).
+2) **Memory Context**: 
+   - `tool: graphiti.search_memory_nodes query="<тема задачи>", top_k=10`
+   - если доступно — `graphiti.search_memory_facts query="..."`.
+   - Сводка найденного (2–6 пунктов) + ссылки на исходники/модули, если упомянуты. :contentReference[oaicite:4]{index=4}
+3) Сформируй Task Brief (цель, ограничения, затронутые модули).
+4) Построй Context Bundle:
+   - `workspace-code-search` для семантических кандидатов,
+   - `ripgrep.search` для точного подтверждения имён/флагов/эндпоинтов,
+   - укажи (path, line-range, why).
+5) Сформируй Acceptance Checklist и риски.
+6) При значимых изменениях архитектуры — предложи ADR-драфт (не коммить сам).
+
+# Ограничения
+- Не вноси правок. Только план/чек-лист/риски/список файлов+строк.

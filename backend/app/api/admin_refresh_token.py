@@ -18,13 +18,15 @@ async def refresh_access_token(refresh_token: str) -> str:
     if username is None:
         raise HTTPException(status_code=401, detail="Invalid refresh token or expired")
 
-    new_access_token = create_access_token(data={"sub": username},
-                                           expires_delta=timedelta(minutes=cfg.ACCESS_TOKEN_EXPIRE_MINUTES))
+    new_access_token = create_access_token(
+        data={"sub": username},
+        expires_delta=timedelta(minutes=cfg.ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
     return new_access_token
 
 
 # Использование в эндпоинте
 @router.post("/refresh")
 async def refresh_access_token_endpoint(request: AdminTokenRefreshRequest):
-    new_access_token = refresh_access_token(request.refresh_token)
+    new_access_token = await refresh_access_token(request.refresh_token)
     return {"access_token": new_access_token, "token_type": "bearer"}

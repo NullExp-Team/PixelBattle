@@ -1,0 +1,15 @@
+---
+description: первичная сборка docs/ai/
+alwaysApply: false
+---
+Собери базовую документацию проекта.
+Шаги:
+1) tree_sitter.register_project_tool(path="<ABS_PATH>", name="rag_app")
+2) tree_sitter.analyze_project(project="rag_app")
+3) tree_sitter.project_overview(project="rag_app") → сохрани в docs/ai/project_brief.md
+4) Сгенерируй:
+   - docs/ai/architecture.md (структура пакетов, связи, точки входа)
+   - docs/ai/pipelines.md (ingest → index → hybrid retrieve → rerank → QA stream)
+   - docs/ai/glossary.md (термины RAG/LLM, BM25, RRF, MMR, Planner)
+5) Пройдись по ключевым файлам из src/**:
+   - для каждого: tree_sitter.explain_code + get_symbols → docs/ai/modules/<file>.md

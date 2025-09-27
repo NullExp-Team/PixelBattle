@@ -1,0 +1,39 @@
+---
+description: "Implementation — правки по согласованному Bundle + обновление docs/ai/modules + запись результата в Graphiti"
+globs:
+  - "src/**"
+  - "docs/ai/modules/**"
+alwaysApply: false
+---
+
+# Поведение
+- Цель: точечные изменения по плану/Bundle, актуализация модульных обзоров и тестов, **фиксация результата в памяти**.
+
+# Шаги
+1) Обнови контекст (Auto-Context Refresh).
+2) Перед началом правок проверь память:
+   - `tool: graphiti.search_memory_nodes query="<модуль/симптом/решение>", top_k=10`
+   - при наличии фактов — учти их в реализации. :contentReference[oaicite:5]{index=5}
+3) На каждую правку ссылайся на (path, line-range) из Bundle.
+4) После правок:
+   - перегенерируй `docs/ai/modules/<file>.md` через `tree_sitter.explain_code/get_symbols`,
+   - если менялись роуты — освежи `docs/ai/contracts/openapi.md`,
+   - прогон тестов/линтера (если включён авто-run terminal).
+5) **Запиши результат в память (обязательно):**
+```
+
+tool: graphiti.add_memory
+name="fix(<кратко>) @<module>"
+episode_body="
+Context: <1-2 строки, что чинили/добавляли>
+Steps: <ключевые шаги/команды/флаги>
+Result: <итог/ограничения>
+Tags: module:<...>; type:bug|feat; ref:<PR/commit>
+"
+source="manual"
+
+```
+   - Если у тебя доступны `search_memory_facts`/кастомные сущности — можно добавить отдельную короткую заметку-факт. :contentReference[oaicite:6]{index=6}
+
+# Ограничения
+- Не трогай несвязанные файлы. Не увеличивай контекст сверх необходимого.
